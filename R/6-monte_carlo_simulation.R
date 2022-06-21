@@ -16,80 +16,258 @@ library(ggthemes)
 library(cowplot)
 library(scales)
 
+
+# 00 - abreviacoes --------------------------------------------------------
+
+# acc - acessibility 
+# ti - time interval 
+# co - cutoff 
+# sum - summary 
+
 set.seed(100)
 
 options(scipen = 9999)
 
-hexagonos <- st_read(dsn = 'hex_agregado_for_09_2019.gpkg')
+hexagonos <- st_read(dsn = 'R/data/hex_agregado_for_09_2019.gpkg')
 
 map_tiles <- readRDS(paste0("//storage6/usuarios/Proj_acess_oport/data/acesso_oport/maptiles_crop/2019/mapbox/maptile_crop_mapbox_", "for","_2019.rds")) 
 
-# current time interval -  -------------------------------------------------------------------
+#  time interval -  -------------------------------------------------------------------
 
-acc_current <- read_rds('transit_access_Current.rds')
+acc_current <- read_rds('R/data/transit_access_Current.rds') %>%  mutate(situ = "current")
+acc_diff <- read_rds('R/data/transit_access_diff_v2.rds') %>% mutate(situ = "diff") %>% select(-scenario,-type)
 
-max(acc_current$travel_time) # os tempos so vao até 60m 
+acc_data <- rbind(acc_current,acc_diff)
 
-vector.janela <- seq(0,120,5)
+vector.janela <- seq(0,120,5) # a resolucao minima da janela eh 5 min 
+
+# possiveis combinacoes de janela 
 
 combinations <- expand.grid(inicio = vector.janela,fim = vector.janela) %>% 
   filter(fim != 0) %>% 
   filter(fim > inicio) %>% 
   filter(inicio > 20) %>% 
   filter(inicio < 100) %>% 
-  filter(fim - inicio > 20)
+  filter(fim - inicio >= 10)
 
+
+# para teste da funcao 
 inicio = 30
 fim = 60
+situ.teste = "current"
 
-calculate_acc_timeinterval_hexs_j_current <- function(inicio,fim){
+# calcula a acessibildiade para um hex a partir da escolha de uma janela 
+
+calculate_acc_timeinterval_hexs <- function(inicio,fim,situ){
   
-  vamo <- acc_current %>% filter(travel_time >= inicio) %>% filter(travel_time <= fim) %>% 
-    arrange(fromId) %>% 
-    # group_by(fromId)
-    # filter(scenario == scenario.teste) %>% 
-    # filter(opportunities_factor == 'Jobs') %>% 
-    # summarise(ACC = mean(only_transit_CMATT,na.rm = T)) %>% 
-    mutate(inicio = inicio, fim = fim) %>% 
-    group_by(fromId,inicio,fim) %>% 
-    summarise(ACC = mean(only_transit_CMATT,na.rm = T))
-  
+  vamo <- setDT(acc_data)[situ == situ.teste,] # escolhe a situacao
+  vamo1 <- vamo[travel_time > inicio & travel_time < fim] # filtra a janela 
+  vamo2 <- vamo1[,.(acc = mean(only_transit_CMATT,na.rm = T)), by = .(fromId)] # resume a acessibilidade por hex
+  vamo3 <- vamo2[,c("janela","tamanho_janela") := .(paste(inicio,fim,sep = "|"),fim-inicio)] # adiciona informacao da janela utilizada
   
 }
 
 
-resumo_acc_timeinterval_hex_current <- purrr::map2_df(.x = combinations$inicio,.y = combinations$fim,.f = calculate_acc_timeinterval_hexs_j_current)
+# valores de acessibilidade para todos os hexagonos a depender da janela 
 
-resumo_acc_timeinterval_hex_current_1 <- resumo_acc_timeinterval_hex_current %>% mutate(id = paste0(inicio,fim)) 
+resumo_acc_timeinterval_hex_current <- purrr::map2_df(.x = combinations$inicio,
+                                                      .y = combinations$fim,
+                                                      .f = calculate_acc_timeinterval_hexs,
+                                                      situ = "current")
 
-combinacoes_ids <- data.frame(id = unique(resumo_acc_timeinterval_hex_current_1$id))
+resumo_acc_timeinterval_hex_diff <- purrr::map2_df(.x = combinations$inicio,
+                                                      .y = combinations$fim,
+                                                      .f = calculate_acc_timeinterval_hexs,
+                                                      situ = "diff")
+
+
+combinacoes_janelas <- resumo_acc_timeinterval_hex_current %>% distinct(janela,tamanho_janela)
 
 num.simu <- 1
+tamanho_janela.t = "NULL"
+tamanho_amostra = 4
+tamanho_janela.t = 20 
+tamanho_janela = 15
+t_janela = 10
 
-simula_sd_current_hex_ti <- function(num.simu){
+simula_sd_current_hex_ti <- function(num.simu,t_janela,tamanho_amostra){
   
-  ids_sort <- combinacoes_ids %>% sample_n(4)
   
-  vamo <- resumo_acc_timeinterval_hex_current_1 %>% filter(id %in% ids_sort$id) %>% 
-    # group_by(fromId) %>% summarise(sd = sd(ACC,na.rm = T), ACC = mean(ACC, na.rm = TRUE)) %>% 
-    mutate(num.simu)
+  if(is.null(t_janela) == TRUE) {
+    
+    # sorteia as janelas 
+   
+    janelas_sorteadas <- setDT(combinacoes_janelas)[sample(.N,tamanho_amostra)]
+    
+    # resumo 
+    
+    vamo <- setDT(resumo_acc_timeinterval_hex_current)[janela %in% janelas_sorteadas$janela,]
+    vamo1 <- vamo[,num.simu := num.simu]
+    vamo1[,janelas_utilizadas := paste(unique(vamo1$janela),collapse = ",")]
+    vamo1[,estrategia := "random intervals"]
+    
+    
+    
+    return(vamo1)
+  }
+  
+  else {
+    
+    janelas_sorteadas2 <- setDT(combinacoes_janelas)[tamanho_janela == t_janela]
+    janelas_sorteadas3 <- janelas_sorteadas2[sample(.N,tamanho_amostra)]
+    
+    vamo <- setDT(resumo_acc_timeinterval_hex_current)[janela %in% janelas_sorteadas3$janela,]
+    vamo1 <- vamo[,num.simu := num.simu]
+    vamo1[,janelas_utilizadas := paste(unique(vamo1$janela),collapse = ",")]
+    vamo1[,estrategia := paste0("interval width -",t_janela," min")]
+    
+    return(vamo1)
+    
+  }
+
   
 }
 
-# rodar isso aqui
+simula_sd_diff_hex_ti <- function(num.simu,t_janela,tamanho_amostra){
+  
+  
+  if(is.null(t_janela) == TRUE) {
+    
+    # sorteia as janelas 
+    
+    janelas_sorteadas <- setDT(combinacoes_janelas)[sample(.N,tamanho_amostra)]
+    
+    # resumo 
+    
+    vamo <- setDT(resumo_acc_timeinterval_hex_diff)[janela %in% janelas_sorteadas$janela,]
+    vamo1 <- vamo[,num.simu := num.simu]
+    vamo1[,janelas_utilizadas := paste(unique(vamo1$janela),collapse = ",")]
+    vamo1[,estrategia := "random intervals"]
+    
+    return(vamo1)
+  }
+  
+  else {
+    
+    janelas_sorteadas2 <- setDT(combinacoes_janelas)[tamanho_janela == t_janela]
+    
+    janelas_sorteadas3 <- janelas_sorteadas2[sample(.N,tamanho_amostra)]
+    
+    vamo <- setDT(resumo_acc_timeinterval_hex_diff)[janela %in% janelas_sorteadas3$janela,]
+    vamo1 <- vamo[,num.simu := num.simu]
+    vamo1[,janelas_utilizadas := paste(unique(vamo1$janela),collapse = ",")]
+    vamo1[,estrategia := paste0("interval width -",t_janela," min")]
+    
+    return(vamo1)
+    
+  }
+  
+  
+}
 
-library(pbapply)
+teste <- simula_sd_diff_hex_ti(num.simu = 1,t_janela = 10,tamanho_amostra = 4) # ok
+
+# resumo simulacao current scenario 
 
 tictoc::tic()
-summary_simulation_current_scenario_hexs <- map_df(.x = 1:1000,simula_sd_current_hex_ti)
+summary_simulation_current_scenario_ti <- map_df(.x = 1:10000,simula_sd_current_hex_ti, t_janela = NULL,
+                                              tamanho_amostra = 4)
 tictoc::toc()
-XX
 
-write_rds(summary_simulation_current_scenario_hexs,'summary_simulation_current_scenario_hexs_v2.rds')
+head(summary_simulation_current_scenario_ti)
 
-# rodar daqui
+hist(summary_simulation_current_scenario_ti$tamanho_janela)
 
-summary_simulation_current_scenario_hexs <- read_rds('summary_simulation_current_scenario_hexs_v2.rds')
+# write_rds(summary_simulation_current_scenario,'R/data/output/summary_simulation_current_scenario.rds')
+
+# resumo simulacao diff scenario 
+
+tictoc::tic()
+summary_simulation_diff_scenario_ti <- map_df(.x = 1:10000,simula_sd_diff_hex_ti, t_janela = NULL,
+                                              tamanho_amostra = 4)
+tictoc::toc()
+
+head(summary_simulation_diff_scenario_ti)
+
+# write_rds(summary_simulation_diff_scenario,'R/data/output/summary_simulation_diff_scenario.rds')
+
+# resumo para tamanho fixo de janela 
+
+
+summary_simulation_current_scenario_ti_janela_fixa_10 <- map_df(.x = 1:10000,
+                                                                 t_janela = 10,
+                                                                 simula_sd_current_hex_ti,
+                                                                 tamanho_amostra = 4)
+
+summary_simulation_current_scenario_ti_janela_fixa_20 <- map_df(.x = 1:10000,
+                                                                 t_janela = 20,
+                                                                 simula_sd_current_hex_ti,
+                                                                 tamanho_amostra = 4)
+
+summary_simulation_current_scenario_ti_janela_fixa_30 <- map_df(.x = 1:10000,
+                                                                 t_janela = 30,
+                                                                 simula_sd_current_hex_ti,
+                                                                 tamanho_amostra = 4)
+
+
+
+# cutoff ------------------------------------------------------------------
+
+cutoff_hexs <- acc_data  %>% 
+  filter(travel_time %in% seq(0,120,1)) %>% 
+  filter(travel_time > 20 & travel_time <= 100) %>% 
+  group_by(fromId) %>% 
+  mutate(acc = only_transit_CMATT) %>% 
+  select(-only_transit_CMATT)
+
+combinacoes_co <- data.frame(id = unique(cutoff_hexs$travel_time))
+
+situ.teste = "current"
+
+simula_sd_co <- function(num.simu, sit, tamanho_amostra){
+  
+  co_sort <- combinacoes_co %>% sample_n(tamanho_amostra)
+  
+  vamo <- setDT(cutoff_hexs)[situ == sit]
+  
+  vamo1 <- vamo[travel_time %in% co_sort$id]
+  
+  unique(vamo1$travel_time)
+  
+  vamo2 <- vamo1[,num.simu := num.simu]
+  
+  vamo2[,cutoffs_utilizados := paste(unique(vamo2$travel_time),collapse = ",")]
+  vamo3 <- vamo2[, !c("situ")]
+  
+  length(unique(vamo3$fromId))
+  
+  return(vamo3)
+
+  
+}
+
+teste <- simula_sd_co(num.simu = 1,sit = "current",tamanho_amostra = 5)
+
+# resumo cutoff current
+tictoc::tic()
+summary_simulation_current_scenario_co <- map_df(.x = 1:10000,
+                                                 simula_sd_co,
+                                                 sit = "current",
+                                                 tamanho_amostra = 4)
+tictoc::toc()
+
+
+# resumo cutoff diff
+
+summary_simulation_diff_scenario_co <- map_df(.x = 1:10000,
+                                                 simula_sd_co,
+                                                 sit = "diff",
+                                                 tamanho_amostra = 4)
+
+
+
+# Figuras  ----------------------------------------------------------------
+
 
 
 x_j <- setDT(summary_simulation_current_scenario_hexs)[,
@@ -121,6 +299,8 @@ ti_current <- ggplot()+
   # theme(legend.position="none",axis.title = element_blank())
 
 
+
+
 # 01 - current cutoff -----------------------------------------------------
 
 cutoff_hexs <- acc_current  %>% 
@@ -129,8 +309,8 @@ cutoff_hexs <- acc_current  %>%
   group_by(fromId) %>% 
   mutate(am = only_transit_CMATT) 
 
-cutoff_hexs_medio <- cutoff_hexs %>% 
-  group_by(fromId) %>% summarise(am = mean(only_transit_CMATT))
+# cutoff_hexs_medio <- cutoff_hexs %>% 
+#   group_by(fromId) %>% summarise(am = mean(only_transit_CMATT))
 
 # %>% 
 #   group_by(fromId) %>% summarise(sd = sd(am, na.rm = T))  
