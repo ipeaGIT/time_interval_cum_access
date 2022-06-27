@@ -9,16 +9,15 @@ setwd("~")
 b <- readRDS("//storage6//usuarios//Proj_acess_oport//data//acesso_oport//hex_agregados/2019/hex_agregado_for_09_2019.rds")
 
 acc <- function(cutoff, tmin,tmax){
-  access <- readRDS("data/output_access/transit_access_Current.rds") %>%
+  access <- readRDS("transit_access_Current.rds") %>%
     filter(travel_time == cutoff) %>%
     mutate(cenario = "cut")%>%
-    select(fromId, only_transit_CMATT, only_transit_CMAET, cenario)
+    select(fromId, only_transit_CMATT, cenario)
   
-  access_mean <- readRDS("data/output_access/transit_access_Current.rds") %>%
+  access_mean <- readRDS("transit_access_Current.rds") %>%
     filter(travel_time >= tmin & travel_time <=tmax) %>%
     group_by(fromId) %>%
-    summarise(only_transit_CMATT = mean(only_transit_CMATT),
-              only_transit_CMAET = mean(only_transit_CMAET))%>%
+    summarise(only_transit_CMATT = mean(only_transit_CMATT))%>%
     mutate(cenario = "interval")
   
   breaks <- if(max(access$only_transit_CMATT, na.rm = T)>max(access_mean$only_transit_CMATT, na.rm = T)){
@@ -87,6 +86,19 @@ acc <- function(cutoff, tmin,tmax){
     big.mark = ","
   )
   
+  cut1 <- ifelse(cutoff==30,30,ifelse(cutoff==50,50,70))
+  label1 <- if(cutoff==30){c("A","B")}
+  else if(cutoff==50){c("C","D")}
+  else{c("E","F")}
+  
+  min1 <- ifelse(cutoff==30,20,ifelse(cutoff==50,40,60))
+  max1 <- ifelse(cutoff==30,40,ifelse(cutoff==50,60,80))
+  
+  aa <- paste0("(", label1[1],") Cutoff ",cut1, " Minutes")
+  bb <- paste0("(", label1[2], ") Interval ", min1, "-", max1, " Minutes")
+  
+  
+  
   plot <- ggplot() +
     geom_sf(data = state_shape, fill = "#efeeec", color = "gray75") +
     geom_sf(
@@ -100,7 +112,8 @@ acc <- function(cutoff, tmin,tmax){
       alpha = 0.7
     ) +
     geom_sf(data = city_shape, fill = NA) +
-    facet_wrap(~ cenario, nrow = 1, ncol = 2,labeller = labeller(cenario = c("cut" = "(E) Cutoff 70 Minutes","interval" = "(F) Interval 60-80 Minutes"))) +
+    #facet_wrap(~ cenario, nrow = 1, ncol = 2,labeller = labeller(cenario = c("cut" = "(E) Cutoff 70 Minutes","interval" = "(F) Interval 60-80 Minutes"))) +
+    facet_wrap(~ cenario, nrow = 1, ncol = 2,labeller = labeller(cenario = c("cut" = aa, "interval" = bb))) +
     coord_sf(xlim, ylim) +
     scale_fill_viridis_c(
       name = "Accessibility",
@@ -125,21 +138,20 @@ acc <- function(cutoff, tmin,tmax){
 ####### Impacto Acessibilidade Futuro - atual ######
 
 acc_diff <- function(cutoff, tmin,tmax){
-  a <- readRDS("data//output_access//transit_access_diff.rds") %>%
+  a <- readRDS("transit_access_diff_v2.rds") %>%
     filter(travel_time == cutoff,
            scenario == "contrafactual",
            type == "abs")%>%
     mutate(cenario ="cut")%>%
-    select(fromId, only_transit_CMATT, only_transit_CMAET, cenario)
+    select(fromId, only_transit_CMATT, cenario)
   
   
-  access_dif_mean <- readRDS("data/output_access/transit_access_diff.rds") %>%
+  access_dif_mean <- readRDS("transit_access_diff_v2.rds") %>%
     filter(scenario == "contrafactual",
            type == "abs",
            travel_time >= tmin & travel_time <=tmax) %>%
     group_by(fromId) %>%
-    summarise(only_transit_CMATT = mean(only_transit_CMATT),
-              only_transit_CMAET = mean(only_transit_CMAET))%>%
+    summarise(only_transit_CMATT = mean(only_transit_CMATT))%>%
     mutate(cenario ="interval")
   
   
@@ -210,6 +222,20 @@ acc_diff <- function(cutoff, tmin,tmax){
     big.mark = ","
   )
   
+  cut1 <- ifelse(cutoff==30,30,ifelse(cutoff==50,50,70))
+  label1 <- if(cutoff==30){c("A","B")}
+            else if(cutoff==50){c("C","D")}
+            else{c("E","F")}
+  
+  min1 <- ifelse(cutoff==30,20,ifelse(cutoff==50,40,60))
+  max1 <- ifelse(cutoff==30,40,ifelse(cutoff==50,60,80))
+  
+  aa <- paste0("(", label1[1],") Cutoff ",cut1, " Minutes")
+  bb <- paste0("(", label1[2], ") Interval ", min1, "-", max1, " Minutes")
+  
+  #print(aa)
+  #print(bb)
+  
   plot_dif <- ggplot() +
     geom_sf(data = state_shape, fill = "#efeeec", color = "gray75") +
     geom_sf(
@@ -223,7 +249,10 @@ acc_diff <- function(cutoff, tmin,tmax){
       alpha = 0.7
     ) +
     geom_sf(data = city_shape, fill = NA) +
-    facet_wrap(~ cenario, nrow = 1, ncol = 2,labeller = labeller(cenario = c("cut" = "(E) Cutoff 70 Minutes","interval" = "(F) Interval 60-80 Minutes"))) +
+    facet_wrap(~ cenario, nrow = 1, ncol = 2,labeller = labeller(cenario = c("cut" = aa, "interval" = bb))) +
+    
+    #labeller(cenario = c("cut" = "(E) Cutoff 70 Minutes","interval" = "(F) Interval 60-80 Minutes"))) +
+    
     coord_sf(xlim, ylim) +
     scale_fill_viridis_c(
       name = "Accessibility\ngain",
