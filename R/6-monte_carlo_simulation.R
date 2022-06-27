@@ -191,7 +191,7 @@ head(summary_simulation_diff_scenario_ti)
 
 # write_rds(summary_simulation_diff_scenario,'R/data/output/summary_simulation_diff_scenario.rds')
 
-# resumo para tamanho fixo de janela 
+# resumo para tamanho fixo de janela current 
 
 
 summary_simulation_current_scenario_ti_janela_fixa_10 <- map_df(.x = 1:10000,
@@ -209,7 +209,32 @@ summary_simulation_current_scenario_ti_janela_fixa_30 <- map_df(.x = 1:10000,
                                                                  simula_sd_current_hex_ti,
                                                                  tamanho_amostra = 4)
 
+ss_current_janelas_fixas <- rbind(summary_simulation_current_scenario_ti_janela_fixa_10,
+                                  summary_simulation_current_scenario_ti_janela_fixa_20,
+                                  summary_simulation_current_scenario_ti_janela_fixa_30)
 
+# resumo para tamanho fixo de janela diff
+
+summary_simulation_diff_scenario_ti_janela_fixa_10 <- map_df(.x = 1:10000,
+                                                                t_janela = 10,
+                                                                simula_sd_diff_hex_ti,
+                                                                tamanho_amostra = 4)
+
+summary_simulation_diff_scenario_ti_janela_fixa_20 <- map_df(.x = 1:10000,
+                                                                t_janela = 20,
+                                                                simula_sd_diff_hex_ti,
+                                                                tamanho_amostra = 4)
+
+summary_simulation_diff_scenario_ti_janela_fixa_30 <- map_df(.x = 1:10000,
+                                                                t_janela = 30,
+                                                                simula_sd_diff_hex_ti,
+                                                                tamanho_amostra = 4)
+
+ss_diff_janelas_fixas <- rbind(summary_simulation_diff_scenario_ti_janela_fixa_10,
+                               summary_simulation_diff_scenario_ti_janela_fixa_20,
+                               summary_simulation_diff_scenario_ti_janela_fixa_30)
+
+# PAREI AQUI 
 
 # cutoff ------------------------------------------------------------------
 
@@ -259,16 +284,78 @@ tictoc::toc()
 
 # resumo cutoff diff
 
+tictoc::tic()
 summary_simulation_diff_scenario_co <- map_df(.x = 1:10000,
                                                  simula_sd_co,
                                                  sit = "diff",
                                                  tamanho_amostra = 4)
+tictoc::toc()
 
 
 
 # Figuras  ----------------------------------------------------------------
 
+# Figura 10 
 
+# current CO
+
+head(summary_simulation_current_scenario_co)
+
+resumo_cidade_co_current <- summary_simulation_current_scenario_co[,.(acc = mean(acc,na.rm = TRUE), sd = sd(acc)),
+                                                                   by = .(num.simu,fromId)]
+
+head(resumo_cidade_co_current)
+
+resumo_cidade_co_current1 <- resumo_cidade_co_current[,.(acc = mean(acc,na.rm = TRUE), sd = sd(sd)), 
+                                                      by =.(num.simu)]
+
+resumo_cidade_co_current1[, estrategia := "Cutoff"]
+
+resumo_cidade_co_current1[,c("num.simu","estrategia","acc","sd")]
+
+# current TI 
+
+head(summary_simulation_current_scenario_ti)
+
+resumo_cidade_ti_current <- summary_simulation_current_scenario_ti[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
+                                                                   by = .(num.simu,fromId,estrategia)]
+
+resumo_cidade_ti_current1 <- resumo_cidade_ti_current[,.(acc = mean(acc,na.rm = TRUE), sd = sd(sd)), 
+                                                      by =.(num.simu,estrategia)]
+
+resumo_cidade_ti_current_jf <- ss_current_janelas_fixas[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
+                                                        by = .(num.simu,fromId,estrategia)]
+
+resumo_cidade_ti_current_jf1 <- resumo_cidade_ti_current_jf[,.(acc = mean(acc,na.rm = TRUE), sd = sd(sd)), 
+                                                            by =.(num.simu,estrategia)]
+
+# figura 10 parte a 
+
+dados.fig10.part.A <- rbind(resumo_cidade_co_current1,resumo_cidade_ti_current1,resumo_cidade_ti_current_jf1)
+dados.fig10.part.A <- rbind(resumo_cidade_co_current1,resumo_cidade_ti_current1)
+dados.fig10.part.A <- rbind(resumo_cidade_ti_current_jf1)
+
+unique(resumo_cidade_ti_current_jf1$estrategia)
+
+
+graf_cidade_current <- ggplot(dados.fig10.part.A, aes(x=sd, fill=estrategia)) +
+  geom_histogram(alpha=0.8, position="identity") + labs(fill = 'time approach') +
+  xlab('standard deviation (sd)') + theme_bw()
+
+
+# distribuição dos desvios  -----------------------------------------------
+
+# CURRENT 
+
+resumo_acc_timeinterval_hex_current
+
+
+
+
+
+ggplot(summary_simulation_current_scenario, aes(x=sd, fill=tipo)) +
+  geom_histogram(alpha=0.5, position="identity") + labs(fill = 'time approach') +
+  xlab('standard deviation (sd)') + theme_bw()
 
 x_j <- setDT(summary_simulation_current_scenario_hexs)[,
                                                        by = .(num.simu,fromId),
@@ -554,6 +641,7 @@ diff <- ti_diff + cutoff_diff + plot_layout(guides = "collect") &
         legend.key.size = unit(.8, 'cm'),legend.key.height = unit(.3, 'cm'),
         legend.text = element_text(size=12),
         legend.justification = "center",legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt"))
+
 
 
 plot.total <- plot_grid(
