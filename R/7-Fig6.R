@@ -56,6 +56,6 @@ ggplot()+
         panel.grid.major = element_line(color = "gray93"),
         panel.grid.major.x = element_line(color = "gray93"))
 
-ggsave("Distribuicao_jobs_schools_cenarios_10_05_2022.png", width = 20, height = 15, units = "cm", dpi = 300)
+ggsave("Fig_5.png", width = 15, height = 10, units = "cm", dpi = 300)
 
 
