@@ -270,7 +270,6 @@ ss_diff_janelas_fixas <- rbind(summary_simulation_diff_scenario_ti_janela_fixa_1
                                summary_simulation_diff_scenario_ti_janela_fixa_20,
                                summary_simulation_diff_scenario_ti_janela_fixa_30)
 
-# PAREI AQUI 
 
 # cutoff ------------------------------------------------------------------
 
@@ -351,9 +350,16 @@ head(summary_simulation_diff_scenario_co)
 # current CO
 
 head(summary_simulation_current_scenario_co)
+# 
+# resumo_cidade_co_current <- summary_simulation_current_scenario_co[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
+#                                                                  by = .(num.simu)]
+# 
+# resumo_cidade_co_current[,estrategia := 'Cutoff']
 
-resumo_cidade_co_current <- summary_simulation_current_scenario_co[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                 by = .(num.simu)]
+
+resumo_cidade_co_current <- summary_simulation_current_scenario_co[,.(acc = mean(acc)), by = .(travel_time, num.simu)]
+
+resumo_cidade_co_current <- resumo_cidade_co_current[, .(sd_medio = sd(acc)), by = num.simu]
 
 resumo_cidade_co_current[,estrategia := 'Cutoff']
 
@@ -363,21 +369,36 @@ hist(resumo_cidade_co_diff$sd)
 
 # current TI 
 
-resumo_cidade_ti_current <- summary_simulation_current_scenario_ti[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                   by = .(num.simu,estrategia)]
+# resumo_cidade_ti_current <- summary_simulation_current_scenario_ti[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
+#                                                                    by = .(num.simu,estrategia)]
 
-hist(resumo_cidade_ti_current$sd)
+head(summary_simulation_current_scenario_ti)
+
+resumo_cidade_ti_current <- summary_simulation_current_scenario_ti[,.(acc = mean(acc)), by = .(janela, num.simu,estrategia)]
+
+resumo_cidade_ti_current <- resumo_cidade_ti_current[, .(sd_medio = sd(acc)), by = .(num.simu,estrategia)]
+
+head(resumo_cidade_ti_current)
 
 
 # current diferentes janelas 
 
-resumo_cidade_dj_current <- ss_current_janelas_fixas[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                   by = .(num.simu,estrategia)]
+resumo_cidade_dj_current <- ss_current_janelas_fixas[,.(acc = mean(acc)), by = .(janela, num.simu,estrategia)]
+
+resumo_cidade_dj_current <- resumo_cidade_dj_current[, .(sd_medio = sd(acc)), by = .(num.simu,estrategia)]
+
+# diff diferentes janelas 
+
+resumo_cidade_dj_diff <- ss_diff_janelas_fixas[,.(acc = mean(acc)), by = .(janela, num.simu,estrategia)]
+
+resumo_cidade_dj_diff <- resumo_cidade_dj_diff[, .(sd_medio = sd(acc)), by = .(num.simu,estrategia)]
+
 
 # diff co 
 
-resumo_cidade_co_diff <- summary_simulation_diff_scenario_co[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                   by = .(num.simu)]
+resumo_cidade_co_diff <- summary_simulation_diff_scenario_co[,.(acc = mean(acc)), by = .(travel_time, num.simu)]
+
+resumo_cidade_co_diff <- resumo_cidade_co_diff[, .(sd_medio = sd(acc)), by = num.simu]
 
 resumo_cidade_co_diff[,estrategia := 'Cutoff']
 
@@ -385,12 +406,12 @@ head(resumo_cidade_co_diff)
 
 # diff TI 
 
-resumo_cidade_ti_diff <- summary_simulation_diff_scenario_ti[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                   by = .(num.simu,estrategia)]
+resumo_cidade_ti_diff <- summary_simulation_diff_scenario_ti[,.(acc = mean(acc)), by = .(janela, num.simu,estrategia)]
+
+resumo_cidade_ti_diff <- resumo_cidade_ti_diff[, .(sd_medio = sd(acc)), by = .(num.simu,estrategia)]
 
 
 hist(resumo_cidade_ti_diff$sd)
-
 
 
 
@@ -419,17 +440,16 @@ dados.fig10.part.A <- rbind(resumo_cidade_co_current,resumo_cidade_ti_current)
 
 dados.fig10.part.B <- rbind(resumo_cidade_co_diff,resumo_cidade_ti_diff)
 
-
 # unique(resumo_cidade_ti_current_jf1$estrategia)
 
 
-graf_cidade_current <- ggplot(dados.fig10.part.A, aes(x=sd, fill = estrategia)) +
-  geom_histogram(alpha=0.6, position="identity") + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,1700)
+graf_cidade_current_dj <- ggplot(dados.fig10.part.A, aes(x=sd_medio, fill = estrategia)) +
+  geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
+  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,500)
 
-graf_cidade_diff <- ggplot(dados.fig10.part.B, aes(x=sd, fill = estrategia)) +
+graf_cidade_diff_dj <- ggplot(dados.fig10.part.B, aes(x=sd_medio, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity") + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw() + ylim(0,1700)
+  xlab('standard deviation (sd)') + theme_bw() + ylim(0,1000)
 
 
 prow <- plot_grid(
@@ -437,9 +457,11 @@ prow <- plot_grid(
   graf_cidade_diff + theme(legend.position="none",axis.title = element_blank()),
   align = 'vh',
   labels = c("A", "B"),
-  hjust = -1,
+  hjust = -2,vjust = 1,
   nrow = 1
 )
+
+prow
 
 legend_b <- get_legend(
   graf_cidade_current + 
@@ -454,41 +476,113 @@ P <- plot_grid(prow, legend_b, ncol = 1, rel_heights = c(0.3, .1),label_y = 'sta
 P
 
 P1 <- ggdraw(add_sub(P , "Standard deviation (sd)", vpadding=grid::unit(1,"lines"), # With `0.8` I add some space in the X margin.
-                     y=3.9, x=.5, vjust=1,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
+                     y=4, x=.5, vjust=1,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
                      angle=0)
              # With this I can change the orientation of the text
 )
 
 P1
 
-P2 <- ggdraw(add_sub(P1 , "Count", # With `0.8` I add some space in the X margin.
-                     y=5.5, x=.01,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
+P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
+                     y=4, x=.01,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
                      angle=90)
              # With this I can change the orientation of the text
 )
 
+P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
+                     y=2.8,x=.005,size = 10, # With `y` and `x` I can indicate the coordinates for my desired text
+                     angle=90)
+             # With this I can change the orientation of the text
+)
 
+P2
+
+
+# Figura 10 diferentes janelas  -------------------------------------------
+
+dados.fig10.dj_A <- rbind(resumo_cidade_co_current,resumo_cidade_dj_current)
+
+dados.fig10.dj_B <- rbind(resumo_cidade_co_diff,resumo_cidade_dj_diff)
+
+graf_cidade_current_dj <- ggplot(dados.fig10.dj_A, aes(x=sd_medio, fill = estrategia)) +
+  geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
+  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,500)
+
+graf_cidade_diff_dj <- ggplot(dados.fig10.dj_B, aes(x=sd_medio, fill = estrategia)) +
+  geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
+  xlab('standard deviation (sd)') + theme_bw() + ylim(0,500)
+
+
+prow <- plot_grid(
+  graf_cidade_current_dj + theme(legend.position="none",axis.title = element_blank()),
+  graf_cidade_diff_dj + theme(legend.position="none",axis.title = element_blank()),
+  align = 'vh',
+  labels = c("A", "B"),
+  hjust = -2,vjust = 1,
+  nrow = 1
+)
+
+prow
+
+legend_b <- get_legend(
+  graf_cidade_diff_dj + 
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom",text = element_text(size = 12),legend.direction = "vertical",
+          legend.key.size = unit(.3, 'cm'),legend.key.width = unit(.5, 'cm'),
+          legend.text = element_text(size=12))
+)
+
+P <- plot_grid(prow, legend_b, ncol = 1, rel_heights = c(0.2, .1),label_y = 'standard desviation (sd)')
+
+P
+
+P1 <- ggdraw(add_sub(P , "Standard deviation (sd)", vpadding=grid::unit(1,"lines"), # With `0.8` I add some space in the X margin.
+                     y=5, x=.5, vjust=1,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
+                     angle=0)
+             # With this I can change the orientation of the text
+)
+
+P1
+
+P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
+                     y=4, x=.01,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
+                     angle=90)
+             # With this I can change the orientation of the text
+)
+
+P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
+                     y=3,x=.000005,size = 10, # With `y` and `x` I can indicate the coordinates for my desired text
+                     angle=90)
+             # With this I can change the orientation of the text
+)
 
 P2
 
 
 # Figura 11  --------------------------------------------------------------
 
-resumo_hexagono_ti_current <- summary_simulation_current_scenario_ti[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                     by = .(fromId,estrategia)] %>% 
+resumo_hexagono_ti_current <- summary_simulation_current_scenario_ti[,.(sd = sd(acc), acc = mean(acc)), by = .(num.simu,estrategia,fromId)]
+
+resumo_hexagono_ti_current <- resumo_hexagono_ti_current[,.(sd_medio = mean(sd),acc = mean(acc)), by = .(fromId,estrategia)] %>% 
+  left_join(hexagonos %>% select(decil,id_hex), by = c("fromId"="id_hex")) %>% st_as_sf()
+  
+
+resumo_hexagono_ti_diff <- summary_simulation_diff_scenario_ti[,.(sd = sd(acc),acc = mean(acc)), by = .(num.simu,estrategia,fromId)]
+
+resumo_hexagono_ti_diff <- resumo_hexagono_ti_diff[,.(sd_medio = mean(sd),acc = mean(acc)), by = .(fromId,estrategia)] %>% 
   left_join(hexagonos %>% select(decil,id_hex), by = c("fromId"="id_hex")) %>% st_as_sf()
 
-resumo_hexagono_ti_diff <- summary_simulation_diff_scenario_ti[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                  by = .(fromId,estrategia)]%>% 
+
+resumo_hexagono_co_current <- summary_simulation_current_scenario_co[,.(sd = sd(acc),acc = mean(acc)), by = .(num.simu,fromId)]
+
+resumo_hexagono_co_current <- resumo_hexagono_co_current[,.(sd_medio = mean(sd),acc = mean(acc)), by = .(fromId)] %>% 
   left_join(hexagonos %>% select(decil,id_hex), by = c("fromId"="id_hex")) %>% st_as_sf()
 
-resumo_hexagono_co_current <- summary_simulation_current_scenario_co[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                     by = .(fromId)]%>% 
-  left_join(hexagonos %>% select(decil,id_hex), by = c("fromId"="id_hex")) %>% st_as_sf()
 # resumo_hexagono_co_current[,estrategia := "Cutoff"]
 
-resumo_hexagono_co_diff <- summary_simulation_diff_scenario_co[,.(acc = mean(acc,na.rm = TRUE),sd = sd(acc)),
-                                                                     by = .(fromId)]%>% 
+resumo_hexagono_co_diff <- summary_simulation_diff_scenario_co[,.(sd = sd(acc),acc = mean(acc)), by = .(num.simu,fromId)]
+
+resumo_hexagono_co_diff <- resumo_hexagono_co_diff[,.(sd_medio = mean(sd),acc = mean(acc)), by = .(fromId)] %>% 
   left_join(hexagonos %>% select(decil,id_hex), by = c("fromId"="id_hex")) %>% st_as_sf()
 # resumo_hexagono_co_diff[,estrategia := "Cutoff"]
 
@@ -500,7 +594,7 @@ ti_current <- ggplot()+
   # nova escala
   new_scale_fill() +
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
-  geom_sf(data = st_transform(resumo_hexagono_ti_current, 3857),aes(fill = sd), color = NA) + theme_bw() + theme_map()+
+  geom_sf(data = st_transform(resumo_hexagono_ti_current, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,210000)) +
   labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
 # theme(legend.position="none",axis.title = element_blank())
@@ -512,7 +606,7 @@ co_current <- ggplot()+
   # nova escala
   new_scale_fill() +
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
-  geom_sf(data = st_transform(resumo_hexagono_co_current, 3857),aes(fill = sd), color = NA) + theme_bw() + theme_map()+
+  geom_sf(data = st_transform(resumo_hexagono_co_current, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,210000)) +
   labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
 # theme(legend.position="none",axis.title = element_blank())
@@ -524,7 +618,7 @@ ti_diff <- ggplot()+
   # nova escala
   new_scale_fill() +
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
-  geom_sf(data = st_transform(resumo_hexagono_ti_diff, 3857),aes(fill = sd), color = NA) + theme_bw() + theme_map()+
+  geom_sf(data = st_transform(resumo_hexagono_ti_diff, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,40000)) +
   labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
 # theme(legend.position="none",axis.title = element_blank())
@@ -536,14 +630,14 @@ co_diff <- ggplot()+
   # nova escala
   new_scale_fill() +
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
-  geom_sf(data = st_transform(resumo_hexagono_co_diff, 3857),aes(fill = sd), color = NA) + theme_bw() + theme_map()+
+  geom_sf(data = st_transform(resumo_hexagono_co_diff, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,40000)) +
   labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
 # theme(legend.position="none",axis.title = element_blank())
 
 # cenario current 
 
-current <- ti_current + co_current + plot_layout(guides = "collect") & 
+current <- co_current + ti_current + plot_layout(guides = "collect") & 
   # plot_annotation(tag_levels = 'A') & 
   theme(legend.position = "bottom",legend.direction = 'horizontal',
         text = element_text(size = 12),
@@ -551,7 +645,7 @@ current <- ti_current + co_current + plot_layout(guides = "collect") &
         legend.text = element_text(size=12),
         legend.justification = "center",legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt"))
 
-diff <- ti_diff + co_diff + plot_layout(guides = "collect") & 
+diff <-   co_diff + ti_diff + plot_layout(guides = "collect") & 
   # plot_annotation(tag_levels = 'A') &
   theme(legend.position = "bottom",legend.direction = 'horizontal',
         text = element_text(size = 12),
@@ -563,15 +657,17 @@ plot.total <- plot_grid(
   current,
   diff,
   align = 'vh',
-  labels = c("A", "B"),label_x = .1,label_y = 1,
+  labels = c("A", "B"),label_x = .2,label_y = 1,
   # vjust = 4,
   nrow = 2
 )
 
+plot.total
+
 
 # Figura 12 ---------------------------------------------------------------
 
-dispersao_co_current <- ggplot(resumo_hexagono_co_current %>% na.omit()) + geom_point(aes(y = sd, x = acc, color = factor(as.numeric(decil))), alpha = .6, size = 2) + 
+dispersao_co_current <- ggplot(resumo_hexagono_co_current %>% na.omit()) + geom_point(aes(y = sd_medio, x = acc, color = factor(as.numeric(decil))), alpha = .6, size = 2) + 
   theme_bw() +
   scale_y_continuous(breaks = seq(0,200000,50000),minor_breaks = NULL,limits = c(0,220000)) + 
   scale_x_continuous(minor_breaks = NULL,limits = c(0,500000)) + 
@@ -590,7 +686,7 @@ dispersao_co_current <- ggplot(resumo_hexagono_co_current %>% na.omit()) + geom_
     
   )
 
-dispersao_ti_current <- ggplot(resumo_hexagono_ti_current %>% na.omit()) + geom_point(aes(y = sd, x = acc, color = factor(as.numeric(decil))), alpha = .6, size = 2) + 
+dispersao_ti_current <- ggplot(resumo_hexagono_ti_current %>% na.omit()) + geom_point(aes(y = sd_medio, x = acc, color = factor(as.numeric(decil))), alpha = .6, size = 2) + 
   theme_bw() +
   scale_y_continuous(breaks = seq(0,200000,50000),minor_breaks = NULL,limits = c(0,220000)) + 
   scale_x_continuous(minor_breaks = NULL,limits = c(0,500000)) + 
@@ -677,7 +773,6 @@ hist(pr_current_co4$sd)
 
 # current ti 
   
-
 pr_current_ti <- summary_simulation_current_scenario_ti[setDT(hexs1), on = c("fromId"="id_hex")]
 
 head(pr_current_ti)
@@ -713,5 +808,67 @@ ggplot(grafico.pr, aes(x=sd, fill = estrategia)) +
         legend.key.size = unit(1, 'cm'),
         legend.text = element_text(size=12))
 
-# CURRENT 
+# diff 
+
+# diff co 
+
+pr_diff_co <- summary_simulation_diff_scenario_co[setDT(hexs1), on = c("fromId"="id_hex")]
+
+head(pr_diff_co)
+
+pr_diff_co[,classification := ifelse(decil == 10, 'top10',
+                                        ifelse(decil <= 4,'bottom40','n-classif' ))]
+
+pr_diff_co1 <- pr_diff_co[classification == 'top10'|classification == 'bottom40',]
+
+pr_diff_co2 <- pr_diff_co1[,.(travel_time,fromId,num.simu,acc,classification)]
+
+head(pr_diff_co2)
+
+pr_diff_co3 <- pr_diff_co2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,travel_time)]
+
+pr_diff_co4 <- pr_diff_co3 %>%  spread(classification,acc) %>% 
+  group_by(num.simu,travel_time) %>% 
+  mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
+  summarise(sd = sd(palma_ratio)) %>%  mutate(estrategia = "CutOff")
+
+hist(pr_diff_co4$sd)
+
+# diff ti 
+
+pr_diff_ti <- summary_simulation_diff_scenario_ti[setDT(hexs1), on = c("fromId"="id_hex")]
+
+head(pr_diff_ti)
+
+pr_diff_ti[,classification := ifelse(decil == 10, 'top10',
+                                        ifelse(decil <= 4,'bottom40','n-classif' ))]
+
+
+pr_diff_ti1 <- pr_diff_ti[classification == 'top10'|classification == 'bottom40',]
+
+head(pr_diff_ti1)
+
+pr_diff_ti2 <- pr_diff_ti1[,.(janela,fromId,num.simu,acc,classification)]
+
+head(pr_diff_ti2)
+
+pr_diff_ti3 <- pr_diff_ti2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,janela)]
+
+pr_diff_ti4 <- pr_diff_ti3 %>%  spread(classification,acc) %>% 
+  group_by(num.simu,janela) %>% 
+  mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
+  summarise(sd = sd(palma_ratio)) %>% mutate(estrategia = "Time Interval")
+
+hist(pr_diff_ti4$sd)
+
+grafico.pr <- rbind(pr_diff_co4,pr_diff_ti4)
+
+# grafico 
+
+ggplot(grafico.pr, aes(x=sd, fill = estrategia)) +
+  geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
+  xlab('standard deviation (sd)') + theme_bw()+ ylab('number of simulations')+ 
+  theme(legend.position = "bottom",text = element_text(size = 12),
+        legend.key.size = unit(1, 'cm'),
+        legend.text = element_text(size=12))
 
