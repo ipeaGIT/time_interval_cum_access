@@ -506,11 +506,11 @@ dados.fig10.dj_B <- rbind(resumo_cidade_co_diff,resumo_cidade_dj_diff)
 
 graf_cidade_current_dj <- ggplot(dados.fig10.dj_A, aes(x=sd_medio, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,500)
+  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,500) + ylab('Number of simulations')
 
 graf_cidade_diff_dj <- ggplot(dados.fig10.dj_B, aes(x=sd_medio, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw() + ylim(0,500)
+  xlab('standard deviation (sd)') + theme_bw() + ylim(0,500)+ ylab('Number of simulations')
 
 
 prow <- plot_grid(
@@ -527,9 +527,10 @@ prow
 legend_b <- get_legend(
   graf_cidade_diff_dj + 
     guides(color = guide_legend(nrow = 1)) +
-    theme(legend.position = "bottom",text = element_text(size = 12),legend.direction = "vertical",
+    theme(legend.position = "bottom",text = element_text(size = 9),legend.direction = "horizontal",
           legend.key.size = unit(.3, 'cm'),legend.key.width = unit(.5, 'cm'),
-          legend.text = element_text(size=12))
+          legend.text = element_text(size=10),
+          legend.title = element_text(size=12))
 )
 
 P <- plot_grid(prow, legend_b, ncol = 1, rel_heights = c(0.2, .1),label_y = 'standard desviation (sd)')
@@ -544,19 +545,29 @@ P1 <- ggdraw(add_sub(P , "Standard deviation (sd)", vpadding=grid::unit(1,"lines
 
 P1
 
-P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
-                     y=4, x=.01,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
-                     angle=90)
-             # With this I can change the orientation of the text
-)
+# P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
+#                      y=4, x=.01,size = 12, # With `y` and `x` I can indicate the coordinates for my desired text
+#                      angle=90)
+#              # With this I can change the orientation of the text
+# )
 
 P2 <- ggdraw(add_sub(P1 , "number of simulations", # With `0.8` I add some space in the X margin.
-                     y=3,x=.000005,size = 10, # With `y` and `x` I can indicate the coordinates for my desired text
+                     y=3,x=0,size = 10, # With `y` and `x` I can indicate the coordinates for my desired text
                      angle=90)
              # With this I can change the orientation of the text
 )
 
 P2
+
+plot.tot <- graf_cidade_current_dj + graf_cidade_diff_dj + ylab(label = "") + xlab(label = "") + plot_layout(guides = "collect") & 
+  plot_annotation(tag_levels = 'A',) &
+  theme(legend.position = "bottom",legend.direction = 'horizontal',
+        text = element_text(size = 12),
+        legend.key.size = unit(.8, 'cm'),legend.key.height = unit(.3, 'cm'),
+        legend.text = element_text(size=10), legend.title = element_text(size=12),
+        legend.justification = "center",legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")) 
+
+plot.tot
 
 
 # Figura 11  --------------------------------------------------------------
@@ -741,7 +752,7 @@ G1
 
 # palma ratio  -----------------------------------------------
 
-hexs1 <- hexagonos %>% select(decil,id_hex) %>% as.data.frame() %>% select(-geom)
+hexs1 <- hexagonos %>% select(decil,id_hex, pop_total) %>% as.data.frame() %>% select(-geom)
 
 head(hexs1)
 
@@ -758,22 +769,27 @@ pr_current_co[,classification := ifelse(decil == 10, 'top10',
 
 pr_current_co1 <- pr_current_co[classification == 'top10'|classification == 'bottom40',]
 
-pr_current_co2 <- pr_current_co1[,.(travel_time,fromId,num.simu,acc,classification)]
+head(pr_current_co1)
+
+pr_current_co2 <- pr_current_co1[,.(travel_time,fromId,num.simu,acc,classification,pop_total)]
 
 head(pr_current_co2)
 
-pr_current_co3 <- pr_current_co2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,travel_time)]
+pr_current_co3 <- pr_current_co2[, .(acc_pond = weighted.mean(acc,pop_total)), by = .(classification,num.simu,travel_time)]
 
-pr_current_co4 <- pr_current_co3 %>%  spread(classification,acc) %>% 
-  group_by(num.simu,travel_time) %>% 
-  mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
-  summarise(sd = sd(palma_ratio)) %>%  mutate(estrategia = "CutOff")
+head(pr_current_co3)
 
-hist(pr_current_co4$sd)
+pr_current_c04 <- pr_current_co3[,.(palma_ratio = acc_pond[classification == 'top10']/
+                                      acc_pond[classification == 'bottom40']),
+                                 by = .(num.simu)] 
+
+pr_current_c04 <- pr_current_c04[,.(sd = sd(palma_ratio)), by = .(num.simu)] %>% 
+  mutate(estrategia = "CutOff")
+
 
 # current ti 
   
-pr_current_ti <- summary_simulation_current_scenario_ti[setDT(hexs1), on = c("fromId"="id_hex")]
+pr_current_ti <- ss_current_janelas_fixas[setDT(hexs1), on = c("fromId"="id_hex")]
 
 head(pr_current_ti)
 
@@ -784,20 +800,21 @@ pr_current_ti1 <- pr_current_ti[classification == 'top10'|classification == 'bot
 
 head(pr_current_ti1)
 
-pr_current_ti2 <- pr_current_ti1[,.(janela,fromId,num.simu,acc,classification)]
+pr_current_ti2 <- pr_current_ti1[,.(janela,fromId,num.simu,acc,classification,pop_total,estrategia)]
 
 head(pr_current_ti2)
 
-pr_current_ti3 <- pr_current_ti2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,janela)]
+pr_current_ti3 <- pr_current_ti2[, .(acc_pond = weighted.mean(acc,pop_total)), by = .(classification,num.simu,janela,estrategia)]
 
-pr_current_ti4 <- pr_current_ti3 %>%  spread(classification,acc) %>% 
-  group_by(num.simu,janela) %>% 
-  mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
-  summarise(sd = sd(palma_ratio)) %>% mutate(estrategia = "Time Interval")
+head(pr_current_ti3)
 
-hist(pr_current_ti4$sd)
+pr_current_ti4 <- pr_current_ti3[,.(palma_ratio = acc_pond[classification == 'top10']/
+                                      acc_pond[classification == 'bottom40']),
+                                 by = .(num.simu,estrategia)] 
 
-grafico.pr <- rbind(pr_current_co4,pr_current_ti4)
+pr_current_ti4 <- pr_current_ti4[,.(sd = sd(palma_ratio)), by = .(num.simu, estrategia)] 
+
+grafico.pr <- rbind(pr_current_c04,pr_current_ti4)
 
 # grafico 
 
@@ -812,56 +829,56 @@ ggplot(grafico.pr, aes(x=sd, fill = estrategia)) +
 
 # diff co 
 
-pr_diff_co <- summary_simulation_diff_scenario_co[setDT(hexs1), on = c("fromId"="id_hex")]
-
-head(pr_diff_co)
-
-pr_diff_co[,classification := ifelse(decil == 10, 'top10',
-                                        ifelse(decil <= 4,'bottom40','n-classif' ))]
-
-pr_diff_co1 <- pr_diff_co[classification == 'top10'|classification == 'bottom40',]
-
-pr_diff_co2 <- pr_diff_co1[,.(travel_time,fromId,num.simu,acc,classification)]
-
-head(pr_diff_co2)
-
-pr_diff_co3 <- pr_diff_co2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,travel_time)]
-
-pr_diff_co4 <- pr_diff_co3 %>%  spread(classification,acc) %>% 
-  group_by(num.simu,travel_time) %>% 
-  mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
-  summarise(sd = sd(palma_ratio)) %>%  mutate(estrategia = "CutOff")
-
-hist(pr_diff_co4$sd)
-
-# diff ti 
-
-pr_diff_ti <- summary_simulation_diff_scenario_ti[setDT(hexs1), on = c("fromId"="id_hex")]
-
-head(pr_diff_ti)
-
-pr_diff_ti[,classification := ifelse(decil == 10, 'top10',
-                                        ifelse(decil <= 4,'bottom40','n-classif' ))]
-
-
-pr_diff_ti1 <- pr_diff_ti[classification == 'top10'|classification == 'bottom40',]
-
-head(pr_diff_ti1)
-
-pr_diff_ti2 <- pr_diff_ti1[,.(janela,fromId,num.simu,acc,classification)]
-
-head(pr_diff_ti2)
-
-pr_diff_ti3 <- pr_diff_ti2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,janela)]
-
-pr_diff_ti4 <- pr_diff_ti3 %>%  spread(classification,acc) %>% 
-  group_by(num.simu,janela) %>% 
-  mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
-  summarise(sd = sd(palma_ratio)) %>% mutate(estrategia = "Time Interval")
-
-hist(pr_diff_ti4$sd)
-
-grafico.pr <- rbind(pr_diff_co4,pr_diff_ti4)
+# pr_diff_co <- summary_simulation_diff_scenario_co[setDT(hexs1), on = c("fromId"="id_hex")]
+# 
+# head(pr_diff_co)
+# 
+# pr_diff_co[,classification := ifelse(decil == 10, 'top10',
+#                                         ifelse(decil <= 4,'bottom40','n-classif' ))]
+# 
+# pr_diff_co1 <- pr_diff_co[classification == 'top10'|classification == 'bottom40',]
+# 
+# pr_diff_co2 <- pr_diff_co1[,.(travel_time,fromId,num.simu,acc,classification)]
+# 
+# head(pr_diff_co2)
+# 
+# pr_diff_co3 <- pr_diff_co2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,travel_time)]
+# 
+# pr_diff_co4 <- pr_diff_co3 %>%  spread(classification,acc) %>% 
+#   group_by(num.simu,travel_time) %>% 
+#   mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
+#   summarise(sd = sd(palma_ratio)) %>%  mutate(estrategia = "CutOff")
+# 
+# hist(pr_diff_co4$sd)
+# 
+# # diff ti 
+# 
+# pr_diff_ti <- summary_simulation_diff_scenario_ti[setDT(hexs1), on = c("fromId"="id_hex")]
+# 
+# head(pr_diff_ti)
+# 
+# pr_diff_ti[,classification := ifelse(decil == 10, 'top10',
+#                                         ifelse(decil <= 4,'bottom40','n-classif' ))]
+# 
+# 
+# pr_diff_ti1 <- pr_diff_ti[classification == 'top10'|classification == 'bottom40',]
+# 
+# head(pr_diff_ti1)
+# 
+# pr_diff_ti2 <- pr_diff_ti1[,.(janela,fromId,num.simu,acc,classification)]
+# 
+# head(pr_diff_ti2)
+# 
+# pr_diff_ti3 <- pr_diff_ti2[,.(acc = mean(acc,na.rm = T)), by = .(num.simu,classification,janela)]
+# 
+# pr_diff_ti4 <- pr_diff_ti3 %>%  spread(classification,acc) %>% 
+#   group_by(num.simu,janela) %>% 
+#   mutate(palma_ratio = top10/bottom40) %>% ungroup() %>% group_by(num.simu) %>% 
+#   summarise(sd = sd(palma_ratio)) %>% mutate(estrategia = "Time Interval")
+# 
+# hist(pr_diff_ti4$sd)
+# 
+# grafico.pr <- rbind(pr_diff_co4,pr_diff_ti4)
 
 # grafico 
 
@@ -869,6 +886,7 @@ ggplot(grafico.pr, aes(x=sd, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
   xlab('standard deviation (sd)') + theme_bw()+ ylab('number of simulations')+ 
   theme(legend.position = "bottom",text = element_text(size = 12),
-        legend.key.size = unit(1, 'cm'),
-        legend.text = element_text(size=12))
+        legend.key.size = unit(1, 'cm'),legend.key.width = unit(.6, 'cm'),
+        legend.direction = "horizontal",
+        legend.text = element_text(size=10))
 
