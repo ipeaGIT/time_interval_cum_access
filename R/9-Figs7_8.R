@@ -291,7 +291,7 @@ ggdraw(xlim = c(0,10), ylim = c(0,30))+
   
 
 
-ggsave2(filename="Figura_8_test2.png", plot=ggplot2::last_plot(),
+ggsave2(filename="Fig_7.png", plot=ggplot2::last_plot(),
         dpi = 300, width = 20, height = 33, units = "cm")
 
 
@@ -310,6 +310,6 @@ ggdraw(xlim = c(0,10), ylim = c(0,30))+
  
  
  
-ggsave2(filename="Figura_9_test2.png", plot=ggplot2::last_plot(),
+ggsave2(filename="Fig_8.png", plot=ggplot2::last_plot(),
         dpi = 300, width = 20, height = 33, units = "cm")
  

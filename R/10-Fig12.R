@@ -27,19 +27,19 @@ resultado <- rbind(current, alternative)
 for_hex <- readRDS("//storage6/usuarios/Proj_acess_oport/data/acesso_oport/hex_agregados/2019/hex_agregado_for_09_2019.rds") %>% 
   st_drop_geometry() %>%
   filter(pop_total > 0,
-         decil %in% c(1,2,3,4,10))%>%
-  select(id_hex,decil)
+         renda_decil %in% c(1,2,3,4,10))%>%
+  select(id_hex,renda_decil)
 
 resultado_join <- dplyr::left_join(resultado, for_hex, by=c("fromId"="id_hex")) %>%
-  filter(!is.na(decil))
+  filter(!is.na(renda_decil))
 
 media_acc_time_decil_1_4 <- resultado_join %>%
-  filter(decil %in% c(1,2,3,4)) %>%
+  filter(renda_decil %in% c(1,2,3,4)) %>%
   group_by(travel_time, scenario) %>%
   summarise(mean_acc_jobs_decil_1_4 = mean(only_transit_CMATT))
 
 media_acc_time_decil_10 <- resultado_join %>%
-  filter(decil == 10) %>%
+  filter(renda_decil == 10) %>%
   group_by(travel_time, scenario) %>%
   summarise(mean_acc_jobs_decil_10 = mean(only_transit_CMATT))
 
@@ -57,7 +57,7 @@ ggplot()+
   geom_line(data=subset(palma, scenario == "current"), aes(x=travel_time, y=palma_ratio, colour="Current"))+
   geom_line(data=subset(palma, scenario == "future"), aes(x=travel_time, y=palma_ratio, colour="Future"))+
   geom_hline(aes(yintercept = h_line), color = "red") +
-  geom_text(aes(5, h_line, label = paste0("Palma ratio = ",h_line), vjust = -1))+
+  geom_text(aes(8, h_line, label = paste0("Palma ratio = ",h_line), vjust = -1))+
   ylab("Palma ratio")+
   xlab("Travel Time (minutes)")+
   scale_colour_manual(values = c("Current" = "black", "Future" = "#619CFF"), name="Scenario",
@@ -69,6 +69,6 @@ ggplot()+
         panel.grid.major = element_line(color = "gray93"),
         panel.grid.major.x = element_line(color = "gray93"))
 
-ggsave("Distribuicao_Palma_jobs_cenarios_14_05_2022.png", width = 20, height = 15, units = "cm", dpi = 300)
+ggsave("Fig_12.png", width = 15, height = 10, units = "cm", dpi = 300)
 
 
