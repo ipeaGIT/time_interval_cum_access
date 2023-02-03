@@ -28,14 +28,14 @@ set.seed(100)
 
 options(scipen = 9999)
 
-hexagonos <- st_read(dsn = 'R/data/hex_agregado_for_09_2019.gpkg')
+hexagonos <- st_read(dsn = 'hex_agregado_for_09_2019.gpkg')
 
 map_tiles <- readRDS(paste0("//storage6/usuarios/Proj_acess_oport/data/acesso_oport/maptiles_crop/2019/mapbox/maptile_crop_mapbox_", "for","_2019.rds")) 
 
 #  time interval -  -------------------------------------------------------------------
 
-acc_current <- read_rds('R/data/transit_access_Current.rds') %>%  mutate(situ = "current")
-acc_diff <- read_rds('R/data/transit_access_diff_v2.rds') %>% mutate(situ = "diff") %>% select(-scenario,-type)
+acc_current <- read_rds('transit_access_Current.rds') %>%  mutate(situ = "current")
+acc_diff <- read_rds('transit_access_diff_v2.rds') %>% mutate(situ = "diff") %>% select(-scenario,-type)
 
 acc_data <- rbind(acc_current,acc_diff) %>% na.omit()
 
@@ -501,16 +501,20 @@ P2
 # Figura 10 diferentes janelas  -------------------------------------------
 
 dados.fig10.dj_A <- rbind(resumo_cidade_co_current,resumo_cidade_dj_current)
+#dados.fig10.dj_A$estrategia <- factor(dados.fig10.dj_A$estrategia, levels=c("interval width -30 min", "interval width -20 min", "interval width -10 min","Cutoff"))
 
 dados.fig10.dj_B <- rbind(resumo_cidade_co_diff,resumo_cidade_dj_diff)
+#dados.fig10.dj_B$estrategia <- factor(dados.fig10.dj_B$estrategia, levels=c("interval width -30 min", "interval width -20 min", "interval width -10 min","Cutoff"))
 
 graf_cidade_current_dj <- ggplot(dados.fig10.dj_A, aes(x=sd_medio, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,500) + ylab('Number of simulations')
+  xlab('standard deviation (sd)') + theme_bw()+ ylim(0,400) + ylab('Number of simulations')+
+  scale_fill_discrete(breaks=c("interval width -30 min", "interval width -20 min", "interval width -10 min","Cutoff"))
 
 graf_cidade_diff_dj <- ggplot(dados.fig10.dj_B, aes(x=sd_medio, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw() + ylim(0,500)+ ylab('Number of simulations')
+  xlab('standard deviation (sd)') + theme_bw() + ylim(0,400)+ ylab('Number of simulations')+
+  scale_fill_discrete(breaks=c("interval width -30 min", "interval width -20 min", "interval width -10 min","Cutoff"))
 
 
 prow <- plot_grid(
@@ -567,8 +571,10 @@ plot.tot <- graf_cidade_current_dj + graf_cidade_diff_dj + ylab(label = "") + xl
         legend.text = element_text(size=10), legend.title = element_text(size=12),
         legend.justification = "center",legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")) 
 
+options(scipen = 999)
 plot.tot
 
+ggsave("Fig_9_new.png", width = 25, height = 15, units = "cm", dpi = 300)
 
 # Figura 11  --------------------------------------------------------------
 
@@ -607,7 +613,8 @@ ti_current <- ggplot()+
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
   geom_sf(data = st_transform(resumo_hexagono_ti_current, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,210000)) +
-  labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
+  labs(fill = 'Average Standard Deviation') + guides(fill = guide_colorbar(title.position = "top")) + 
+  ggtitle('Time interval')
 # theme(legend.position="none",axis.title = element_blank())
 
 co_current <- ggplot()+
@@ -619,7 +626,8 @@ co_current <- ggplot()+
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
   geom_sf(data = st_transform(resumo_hexagono_co_current, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,210000)) +
-  labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
+  labs(fill = 'Average Standard Deviation') + guides(fill = guide_colorbar(title.position = "top")) +
+  ggtitle('Cutoff')
 # theme(legend.position="none",axis.title = element_blank())
 
 ti_diff <- ggplot()+
@@ -631,7 +639,7 @@ ti_diff <- ggplot()+
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
   geom_sf(data = st_transform(resumo_hexagono_ti_diff, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,40000)) +
-  labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
+  labs(fill = 'Average Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
 # theme(legend.position="none",axis.title = element_blank())
 
 co_diff <- ggplot()+
@@ -643,7 +651,7 @@ co_diff <- ggplot()+
   # geom_sf(data = , aes(fill =empregos_total), color = NA) +
   geom_sf(data = st_transform(resumo_hexagono_co_diff, 3857),aes(fill = sd_medio), color = NA) + theme_bw() + theme_map()+
   scale_fill_viridis(option = 'inferno',direction = 1,label = label_number(suffix = "k", scale = 1e-3),limits = c (0,40000)) +
-  labs(fill = 'Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
+  labs(fill = 'Average Standard Deviation') + guides(fill = guide_colorbar(title.position = "top"))
 # theme(legend.position="none",axis.title = element_blank())
 
 # cenario current 
@@ -668,7 +676,7 @@ plot.total <- plot_grid(
   current,
   diff,
   align = 'vh',
-  labels = c("A", "B"),label_x = .2,label_y = 1,
+  labels = c("A", "B"),label_x = .15,label_y = 1,
   # vjust = 4,
   nrow = 2
 )
@@ -884,9 +892,11 @@ ggplot(grafico.pr, aes(x=sd, fill = estrategia)) +
 
 ggplot(grafico.pr, aes(x=sd, fill = estrategia)) +
   geom_histogram(alpha=0.6, position="identity",bins = 100) + labs(fill = 'time approach') +
-  xlab('standard deviation (sd)') + theme_bw()+ ylab('number of simulations')+ 
+  xlab('standard deviation (sd)') + theme_bw()+ ylab('number of simulations')+
+  scale_fill_discrete(breaks=c("interval width -30 min", "interval width -20 min", "interval width -10 min","CutOff"))+
   theme(legend.position = "bottom",text = element_text(size = 12),
         legend.key.size = unit(1, 'cm'),legend.key.width = unit(.6, 'cm'),
         legend.direction = "horizontal",
         legend.text = element_text(size=10))
 
+ggsave("Fig_13_new.png", width = 25, height = 15, units = "cm", dpi = 300)
