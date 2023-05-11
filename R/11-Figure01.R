@@ -212,7 +212,7 @@ pf <- plot_grid(
 )
 
 ggsave(
-  "./figures/figura_esquematica_artigo_for.jpg",
+  "./figures/Fig_01.png",
   plot = pf,
   width = 16,
   height = 5,
