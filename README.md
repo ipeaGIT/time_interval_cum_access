@@ -1,4 +1,5 @@
 <img align="right" src="cover_ag.jpg" width="180">
+
 # A time interval metric for cumulative opportunity accessibility 
 
 This repository contains the code used to write the study:
